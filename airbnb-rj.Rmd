@@ -1,0 +1,789 @@
+---
+title: "Determinantes Espaciais e Estruturais dos Preços no Mercado de Airbnb no Rio de Janeiro"
+output:
+  pdf_document: default
+  html_notebook: default
+---
+
+
+```{r}
+# defina seu diretorio
+
+diretorio <- "/directory is here/"
+```
+
+
+Para a análise empírica, foram utilizados dados de anúncios de Airbnb no município do Rio de Janeiro. As informações sobre preços, características dos imóveis e localização dos anúncios foram obtidas a partir da base de dados de Airbnb. Para a construção da análise espacial, foram utilizados dois conjuntos de dados geográficos: o shapefile do município do Rio de Janeiro disponibilizado pelo pacote brazilmaps e os limites de bairros da cidade obtidos a partir do portal data.rio. A integração entre os dados de micropreços e as unidades territoriais permitiu a construção de medidas agregadas por bairro e por área de planejamento, possibilitando a análise da heterogeneidade espacial dos preços no mercado de hospedagem de curta duração.
+
+O objetivo da análise é investigar como a estrutura urbana do Rio de Janeiro influencia a formação de preços no mercado de Airbnb, com foco na heterogeneidade espacial entre áreas da cidade e no papel de características do imóvel na determinação dos valores cobrados. Em particular, busca-se avaliar a existência de prêmios de localização associados às diferentes Áreas de Planejamento, bem como o efeito do tipo de acomodação e de variáveis de reputação sobre os preços praticados.
+
+```{r}
+install.packages(c("RColorBrewer", "ggridges", "cowplot", "ggplot2", "dplyr", "glue", "ggthemes", "DescTools"))
+
+# general visualisation
+library(RColorBrewer)
+library(ggridges)
+library(cowplot)
+library(ggplot2)
+
+
+# general data manipulation
+library(dplyr)
+library(glue)
+
+# specific visualisation
+##library(hrbrthemes)
+library(ggthemes)
+
+# Statistics
+library(DescTools)
+
+
+```
+
+
+
+```{r}
+# Loading the database
+dados <- read.csv("listings.csv")
+
+
+# Viewing the first DataFrame records
+head(dados, 6)
+```
+
+
+
+```{r}
+dados$neighbourhood_group <- as.factor(dados$neighbourhood_group)
+dados$neighbourhood <- as.factor(dados$neighbourhood)
+dados$room_type <- as.factor(dados$room_type)
+
+# Generating a summary of all data attributes with the summary() function
+summary(dados)
+```
+
+
+
+```{r}
+
+```
+
+
+```{r}
+tab <- table(dados$room_type)
+
+freq_room <- data.frame(
+  room_type = names(tab),
+  Frequency = as.numeric(tab),
+  Percent = as.numeric(prop.table(tab)) * 100
+)
+
+freq_room <- freq_room[order(freq_room$Frequency, decreasing = TRUE), ]
+
+head(freq_room, 10)
+```
+
+
+
+
+```{r}
+ggplot(dados, aes(x = room_type, y = minimum_nights)) +
+  stat_summary(fun = mean, geom = "bar")
+
+```
+
+
+
+```{r}
+ggplot(dados, aes(x = room_type, y = price)) +
+  stat_summary(fun = mean, geom = "bar")
+
+```
+
+
+
+```{r}
+tema <- theme(plot.background = element_rect(fill = "#FFFAFA", color = "#FFFAFA"),
+              plot.title = element_text(size = 23, hjust = .5),
+              axis.text.x = element_text(size = 19, face = "bold"),
+              axis.text.y = element_text(size = 19, face = "bold"),
+              axis.title.x = element_text(size = 19),
+              axis.title.y = element_text(size = 19),
+              legend.position = "none")
+
+options(repr.plot.width=14, repr.plot.height=6)
+a <- ggplot(data = dados, mapping = aes(x = price)) +
+         geom_histogram(fill = "cyan", bins = 70, size = 1.3, color = "black") +
+         theme_minimal() +
+         ylab("Frequency") +
+         xlab("Price") +
+         ggtitle("Price Histogram") +
+         tema
+
+
+df <- data.frame(price = dados["price"][dados["price"] <= 1000])
+b <- ggplot(data = df, mapping = aes(x = price)) +
+         geom_histogram(fill = "cyan", bins = 70, size = 1.3, color = "black") +
+         theme_minimal() +
+         ylab("Frequency") +
+         xlab("Price") +
+         ggtitle("Price <= 1000 | Histogram") +
+         tema
+
+plot_grid(a, b, ncol=2, nrow=1)
+```
+
+
+```{r}
+a <- ggplot(data = dados, mapping = aes(x = minimum_nights)) +
+         geom_histogram(fill = "yellow", bins = 70, size = 1.3, color = "black") +
+         theme_minimal() +
+         ylab("Frequency") +
+         xlab("Minimum nights") +
+         ggtitle("Minimum nights Histogram") +
+         tema
+
+
+df <- data.frame(minimum_nights = dados["minimum_nights"][dados["minimum_nights"] <= 40])
+b <- ggplot(data = df, mapping = aes(x = minimum_nights)) +
+         geom_histogram(fill = "yellow", bins = 70, size = 1.3, color = "black") +
+         theme_minimal() +
+         ylab("Frequency") +
+         xlab("Minimum nights") +
+         ggtitle("Minimum nights <= 40 | Histogram") +
+         tema
+
+plot_grid(a, b, ncol=2, nrow=1)
+```
+
+
+```{r}
+freq_type <- data.frame(cbind(Frequency = table(dados$room_type), Percent = prop.table(table(dados$room_type)) * 100))
+freq_type <- freq_type[order(freq_type$Frequency),]
+freq_type
+
+
+tema <- theme(plot.background = element_rect(fill = "#EEE8AA", color = "yellow"),
+              plot.title = element_text(size = 23, hjust = .5),
+              axis.text.x = element_text(size = 19, face = "bold"),
+              axis.text.y = element_text(size = 19, face = "bold"),
+              axis.title.x = element_text(size = 19),
+              axis.title.y = element_text(size = 19),
+              legend.position = "none")
+
+tema1 <- theme(plot.background = element_rect(fill = "#EEE8AA", color = "yellow"),
+              plot.title = element_text(size = 23, hjust = .5),
+              axis.text.x = element_text(size = 12, face = "bold"),
+              axis.text.y = element_text(size = 12, face = "bold"),
+              axis.title.x = element_text(size = 12),
+              axis.title.y = element_text(size = 12),
+              legend.position = "none")
+
+options(repr.plot.width=15, repr.plot.height=6)
+a <- ggplot(data = freq_type, mapping = aes(x = Frequency, y = row.names(freq_type))) +
+         geom_bar(stat = "identity", mapping = aes(fill = row.names(freq_type), color = row.names(freq_type)), alpha = .7, size = 1.1) +
+         geom_label(mapping = aes(label=Frequency), fill = "#006400", size = 6, color = "white", fontface = "bold", hjust=.7) +
+         ylab("") +
+         ggtitle("Room type distribution") +
+         theme_economist() +
+         tema
+
+b <- ggplot(data = freq_type, aes(x = row.names(freq_type), y = Frequency)) +
+        geom_bar(stat = "identity", mapping = aes(fill = row.names(freq_type), color = row.names(freq_type)), alpha = .7, size = 1.1) +
+        theme_economist() +
+        xlab("") +
+        ylab("") +
+        ggtitle("Room type - Polar") +
+        tema1
+
+#plot_grid(a, b + coord_polar(), ncol=1, nrow=2)
+a
+```
+
+```{r}
+b
+```
+
+
+```{r}
+tema <- theme(plot.title = element_text(size = 23, hjust = .5),
+              axis.text.x = element_text(size = 19, angle=15, face = "bold"),
+              axis.text.y = element_text(size = 19, angle=10, face = "bold"),
+              axis.title.x = element_text(size = 19),
+              axis.title.y = element_text(size = 19),
+              legend.text = element_text(size = 14, face = "bold"))
+
+tab <- table(dados$neighbourhood)
+
+freq_location <- data.frame(
+  neighbourhood = names(tab),
+  Frequency = as.numeric(tab),
+  Percent = as.numeric(prop.table(tab)) * 100
+)
+
+freq_location <- freq_location[order(freq_location$Frequency, decreasing = TRUE), ]
+
+freq_location <-head(freq_location, 10)
+
+ggplot(data = freq_location, mapping = aes(x = neighbourhood, y = Frequency)) +
+  geom_bar(stat = "identity", mapping = aes(fill = neighbourhood, color = neighbourhood), alpha = 0.8) +
+  geom_point(size = 4, color = "green") +
+  geom_line(color = "black", size = 2, linetype = 16, group = 1, alpha = 0.5) +
+  ggtitle("The 10 most frequent neighbourhood") +
+  xlab("") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(size = 8, angle = 45))
+```
+
+```{r}
+means <- data.frame(Mean = c(mean(dados$price), mean(dados$minimum_nights)))
+row.names(means) <- c("Price", "Minimum nights")
+
+medians <- data.frame(Median = c(median(dados$price), median(dados$minimum_nights)))
+row.names(medians) <- c("Price", "Minimum nights")
+
+Moda <- function(x){
+    
+    freq <- table(x)
+    return(names(freq)[freq == max(freq)])
+}
+
+mod <- data.frame(Mode = c(Moda(dados$price), Moda(dados$minimum_nights)))
+row.names(mod) <- c("Price", "Minimum nights")
+```
+
+
+
+```{r}
+tema <- theme(
+              plot.title = element_text(size = 23, hjust = .5),
+              axis.text.x = element_text(size = 19, face = "bold"),
+              axis.text.y = element_text(size = 19, face = "bold"),
+              axis.title.x = element_text(size = 19),
+              axis.title.y = element_text(size = 19),
+              legend.text = element_text(size = 14, face = "bold"))
+
+options(repr.plot.width=15, repr.plot.height=10)
+options(warn=-1)
+df <- data.frame(price = dados["price"][dados["price"] <= 750])
+a <- ggplot(data = df, mapping = aes(x = price)) +
+         geom_density(fill = "cyan", size = 1.3, color = "black") +
+         geom_vline(xintercept = mean(dados$price), size = 1.5, linetype="dashed", color = "black") +
+         geom_vline(xintercept = median(dados$price), size = 1.5, linetype="dashed", color = "red") +
+         geom_vline(xintercept = as.numeric(Moda(dados$price)), size = 1.5, linetype="dashed", color = "blue") +
+         annotate("text", label="Mean = 152.72", x = 270, y = .0085, color = "black", size=5, fontface = "bold") +
+         annotate("text", label="Median = 106", x = 300, y = .0075, color = "red", size=5, fontface = "bold") +
+         annotate("text", label="Mode = 100", x = 330, y = .0065, color = "blue", size=5, fontface = "bold") +
+         ylab("") +
+         xlab("Price") +
+         ggtitle("Price <= 750 | Density") +
+         tema
+
+df <- data.frame(minimum_nights = dados["minimum_nights"][dados["minimum_nights"] <= 32])
+b <- ggplot(data = df, mapping = aes(x = minimum_nights)) +
+         geom_density(fill = "yellow", size = 1.3, color = "black") +
+         geom_vline(xintercept = mean(dados$minimum_nights), size = 1.5, linetype="dashed", color = "black") +
+         geom_vline(xintercept = median(dados$minimum_nights), size = 1.5, linetype="dashed", color = "red") +
+         geom_vline(xintercept = as.numeric(Moda(dados$minimum_nights)), size = 1.5, linetype="dashed", color = "blue") +
+         annotate("text", label="Mean = 7.02", x = 12, y = .33, color = "black", size=5, fontface = "bold") +
+         annotate("text", label="Median = 3", x = 13.5, y = .28, color = "red", size=5, fontface = "bold") +
+         annotate("text", label="Mode = 1", x = 15, y = .23, color = "blue", size=5, fontface = "bold") +
+         ylab("") +
+         xlab("Minimum nights") +
+         ggtitle("Minimum nights <= 32 | Density") +
+         tema
+
+df <- data.frame(price = dados["price"][dados["price"] <= 750])
+c <- ggplot(data = df, mapping = aes(x = price)) +
+         geom_density(fill = "cyan", size = 1.3, color = "black") +
+         ylab("") +
+         xlab("Price") +
+         ggtitle("Price <= 750 | Polar") +
+         tema
+
+df <- data.frame(minimum_nights = dados["minimum_nights"][dados["minimum_nights"] <= 32])
+d <- ggplot(data = df, mapping = aes(x = minimum_nights)) +
+         geom_density(fill = "yellow", size = 1.3, color = "black") +
+         ylab("") +
+         xlab("Minimum nights") +
+         ggtitle("Minimum nights <= 32 | Polar") +
+         tema
+
+plot_grid(a, b, c + coord_polar(), d + coord_polar(), ncol=2, nrow=2)
+```
+
+
+
+
+```{r}
+tema <- theme(
+              plot.title = element_text(size = 23, hjust = .5),
+              axis.text.x = element_text(size = 19, face = "bold"),
+              axis.text.y = element_text(size = 19, face = "bold"),
+              axis.title.x = element_text(size = 19),
+              axis.title.y = element_text(size = 19),
+              legend.text = element_text(size = 14, face = "bold"))
+
+options(repr.plot.width = 14, repr.plot.height=10)
+a <- ggplot(data = dados, aes(y="", x = price)) +
+            geom_violin(size=1.1, color = "black", fill = "cyan", alpha = .7) +
+            geom_vline(xintercept=median(dados$price), size =1.5, color = "black") +
+            theme_minimal() +
+            coord_flip() +
+            ggtitle("Price | Violin") +
+            ylab("") +
+            xlab("") +
+            tema
+
+b <- ggplot(data = dados, mapping = aes(y = "", x = minimum_nights)) +
+            geom_violin(size=1.1, color = "black", fill = "yellow", alpha = .7) +
+            geom_vline(xintercept=median(dados$minimum_nights), size =1.5, color = "black") +
+            coord_flip() +
+            theme_minimal() +
+            ggtitle("Minimum Nights | Violin") +
+            ylab("") +
+            xlab("") +
+            tema
+
+df <- data.frame(price = dados["price"][dados["price"] <= 750])
+c <- ggplot(data = df, mapping = aes(y = "", x = price)) +
+            geom_violin(size=1.1, color = "black", fill = "cyan", alpha = .7) +
+            geom_vline(xintercept=median(dados$price), size =1.5, color = "black") +
+            coord_flip() +
+            ggtitle("Price <= 750 | Violin") +
+            theme_minimal() +
+            ylab("") +
+            xlab("") +
+            tema
+
+df <- data.frame(minimum_nights = dados["minimum_nights"][dados["minimum_nights"] <= 32])
+d <- ggplot(data = df, mapping = aes(y = "", x = minimum_nights)) +
+           geom_violin(size=1.1, color = "black", fill = "yellow", alpha = .7) +
+           geom_vline(xintercept=median(dados$minimum_nights), size =1.5, color = "black") +
+           coord_flip() +
+           ggtitle("Minimum Nights <= 32 | Violin") +
+           theme_minimal() +
+           ylab("") +
+           xlab("") +
+           tema
+
+plot_grid(a, b, c, d, ncol=2, nrow=2)
+```
+
+
+
+
+
+```{r}
+tema <- theme(
+              plot.title = element_text(size = 23, hjust = .5),
+              axis.text.x = element_text(size = 19, face = "bold"),
+              axis.text.y = element_text(size = 19, face = "bold"),
+              axis.title.x = element_text(size = 21),
+              axis.title.y = element_text(size = 21),
+              legend.position = "none")
+
+tema1 <- theme(
+              plot.title = element_text(size = 23, hjust = .5),
+              axis.text.x = element_text(size = 19, face = "bold"),
+              axis.text.y = element_text(size = 19, face = "bold"),
+              axis.title.x = element_text(size = 21),
+              axis.title.y = element_text(size = 21))
+
+options(repr.plot.width=14, repr.plot.height=6)
+ggplot(data = dados, mapping = aes(x = price)) +
+         geom_histogram(mapping = aes(fill = room_type), bins = 70, size = 1.3, color = "black") +
+         theme_minimal() +
+         ylab("Frequency") +
+         xlab("Price") +
+         ggtitle("Price Histogram") +
+         tema
+
+
+
+
+    
+
+
+```
+
+
+```{r}
+df <- data.frame(price = dados["price"][dados["price"] <= 1000], room_type = dados["room_type"][dados["price"] <= 1000])
+ggplot(data = df, mapping = aes(x = price)) +
+         geom_histogram(mapping = aes(fill = room_type), bins = 70, size = 1.3, color = "black") +
+         theme_minimal() +
+         ylab("") +
+         xlab("Price") +
+         ggtitle("Price <= 1000 | Histogram") +
+         tema +
+         theme(legend.position="bottom", legend.text = element_text(colour="black", size=10, 
+                                     face="bold"))
+
+
+```
+
+
+
+```{r}
+df <- data.frame(price = dados["price"][dados["price"] <= 1000], room_type = dados["room_type"][dados["price"] <= 1000])
+ggplot(data = df, mapping = aes(x = price, fill = room_type)) +
+         geom_density(mapping = aes(fill = room_type), bins = 70, size = 1.3, color = "black", alpha = .6, size = 1.5) +
+         theme_minimal() +
+         ylab("Density") +
+         xlab("Price") +
+         ggtitle("Price <= 1000 | Histogram") +
+         tema1 +
+         theme(legend.position="bottom", legend.text = element_text(colour="black", size=10, 
+                                     face="bold"))
+         
+     
+```
+
+
+
+```{r}
+any(is.na(dados$price))
+
+dados <- dados %>%
+  filter(!is.na(price))
+```
+
+
+
+```{r}
+
+
+top_10_neighbourhood <- aggregate(list(dados$price), list(dados$neighbourhood), mean)
+
+
+colnames(top_10_neighbourhood) <- c("neighbourhood", "Average_price_per_neighborhood")
+top_10_neighbourhood <- top_10_neighbourhood[order(top_10_neighbourhood$Average_price_per_neighborhood),]
+top_10_neighbourhood <- tail(top_10_neighbourhood, 12)
+top_10_neighbourhood <- head(top_10_neighbourhood, 10)
+r <- c()
+for(i in 10:1){r <- c(r, i)}
+row.names(top_10_neighbourhood) <- r
+top_10_neighbourhood
+
+tema <- theme(
+              plot.title = element_text(size = 23, hjust = .5),
+              axis.text.x = element_text(size = 19, face = "bold"),
+              axis.text.y = element_text(size = 19, face = "bold"),
+              axis.title.x = element_text(size = 21),
+              axis.title.y = element_text(size = 21),
+              legend.position = "none")
+
+
+
+options(repr.plot.width=15, repr.plot.height=11)
+ggplot(data = top_10_neighbourhood, mapping = aes(x = neighbourhood, y = Average_price_per_neighborhood)) +
+     geom_bar(stat = "identity", mapping = aes(fill = neighbourhood, color = neighbourhood), alpha = .8, size = 1.5) +
+     geom_label(mapping = aes(label = round(Average_price_per_neighborhood, 2)), size = 6, fill = "#F5FFFA", fontface = "bold") +
+     coord_flip() +
+     ggtitle("The 10 most expensive neighborhoods") +
+     xlab("") +
+     ylab("") +
+     tema
+
+
+
+```
+
+```{r}
+tema1 <- theme(
+              plot.title = element_text(size = 23, hjust = .5),
+              axis.text.x = element_text(size = 10, angle = 45, face = "bold"),
+              axis.text.y = element_text(size = 13, face = "bold"),
+              axis.title.x = element_text(size = 11),
+              axis.title.y = element_text(size = 11),
+              legend.position="none")
+
+ggplot(data = top_10_neighbourhood, mapping = aes(x = neighbourhood, y = Average_price_per_neighborhood)) +
+     geom_bar(stat = "identity", mapping = aes(fill = neighbourhood, color = neighbourhood), alpha = .8, size = 1.5) +
+     ggtitle("The 10 most expensive neighborhoods") +
+     xlab("") +
+     ylab("") +
+     tema1
+
+```
+
+
+```{r}
+top_10_neighbourhood_b <- aggregate(list(dados$price), list(dados$neighbourhood), mean)
+colnames(top_10_neighbourhood_b) <- c("neighbourhood", "Average_price_per_neighborhood")
+top_10_neighbourhood_b <- top_10_neighbourhood_b[order(top_10_neighbourhood_b$Average_price_per_neighborhood),]
+top_10_neighbourhood_b <- head(top_10_neighbourhood_b, 10)
+r <- c()
+for(i in 1:10){r <- c(r, i)}
+row.names(top_10_neighbourhood_b) <- r
+
+tema <- theme(plot.title = element_text(size = 23, hjust = .5),
+              axis.text.x = element_text(size = 10, angle=45, face = "bold"),
+              axis.text.y = element_text(size = 19, angle=10, face = "bold"),
+              axis.title.x = element_text(size = 19),
+              axis.title.y = element_text(size = 19),
+              legend.position = "none")
+
+options(repr.plot.width=15, repr.plot.height=6.5)
+a <- ggplot(data = top_10_neighbourhood_b, mapping = aes(x = neighbourhood, y = Average_price_per_neighborhood)) +
+     geom_bar(stat = "identity", mapping = aes(fill = neighbourhood, color = neighbourhood), alpha = .8, size = 1.5) +
+     geom_label(mapping = aes(label = round(Average_price_per_neighborhood, 2)), size = 6, fill = "#F5FFFA", fontface = "bold") +
+     ggtitle("The 10 cheapest neighborhoods") +
+     xlab("") +
+     ylab("") +
+     tema
+
+a
+
+```
+
+
+
+## Getting a map
+
+```{r}
+
+library(brazilmaps)
+```
+
+
+
+```{r}
+cidaderj <- get_brmap(geo = "City", class = "sf")
+
+cidaderj <- subset(cidaderj, cidaderj$City==3304557)
+
+
+#dados$nome <- as.factor(tolower(dados$neighbourhood))
+
+#cidaderj$nome <- as.factor(tolower(cidaderj$nome))
+
+#cidaderj <- cidaderj |>
+#  select(nome, City, geometry)
+
+
+
+```
+
+
+
+```{r}
+
+library(sf)
+
+dt_rj<- dados |>
+  select(id, name, host_id, host_name, neighbourhood, latitude, longitude, room_type, price)
+
+
+# Criação de geometry
+dt_rj <- st_as_sf(
+  dados,
+  coords = c("longitude", "latitude"),
+  crs = 4326
+)
+
+```
+
+
+
+
+```{r}
+library(ggplot2)
+
+total_airbnb <- dt_rj |>
+  group_by(name) |>
+  summarise(total_airbnb = n())
+
+
+```
+
+
+
+
+```{r}
+ggplot() +
+  geom_sf(data = cidaderj, fill = "gray95", color = "black") +
+  geom_sf(data = dt_rj, color = "red", size = 0.4, alpha = 0.5) +
+  labs(
+    title = "Localização dos Airbnbs no Estado do Rio de Janeiro"
+  ) +
+  theme_minimal()
+```
+
+
+
+
+```{r}
+# preço médio por bairro usando a própria base dos pontos
+preco_bairro <- dt_rj |>
+  group_by(neighbourhood) |>
+  summarise(
+    preco_medio = mean(price, na.rm = TRUE)
+  )
+
+# mapa
+ggplot() +
+  # camada base com shape da cidade
+  geom_sf(data = cidaderj, fill = "gray95", color = "black") +
+  
+  # bairros/pontos coloridos pelo preço médio
+  geom_sf(data = preco_bairro, aes(color = preco_medio), size = 0.5, alpha = 0.8) +
+  
+  scale_color_viridis_c(option = "plasma") +
+  
+  labs(
+    title = "Preço Médio dos Airbnbs por Bairro - Rio de Janeiro",
+    color = "Preço Médio"
+  ) +
+  theme_minimal()
+```
+
+
+
+```{r}
+library(readr)
+Limite_de_Bairros <- read_csv("Downloads/Limite_de_Bairros.csv")
+```
+
+
+
+```{r}
+library(dplyr)
+library(sf)
+library(ggplot2)
+
+# preço médio por bairro
+preco_bairro <- dt_rj |>
+  group_by(neighbourhood) |>
+  summarise(
+    preco_medio = mean(price, na.rm = TRUE)
+  )
+
+
+
+bairros_rj <- st_read("/home/usuario/Downloads/Limite_de_Bairros.shp")
+
+ggplot() +
+  geom_sf(data = cidaderj, fill = "gray95", color = "black") +
+  geom_sf(data = bairros_rj, fill = NA, color = "gray70") +
+  geom_sf(data = preco_bairro, aes(color = preco_medio), size = 0.4) +
+  scale_color_viridis_c()
+
+```
+
+
+```{r}
+
+bairros_rj <- bairros_rj |>
+  mutate(
+    area_plane_label = case_when(
+      area_plane == 1 ~ "AP 1 - Centro",
+      area_plane == 2 ~ "AP 2 - Zona Sul / Tijuca",
+      area_plane == 3 ~ "AP 3 - Zona Norte",
+      area_plane == 4 ~ "AP 4 - Barra / Jacarepaguá",
+      area_plane == 5 ~ "AP 5 - Zona Oeste",
+      TRUE ~ "Outros"
+    )
+  )
+
+```
+
+
+
+```{r}
+ggplot() +
+  
+  geom_sf(data = bairros_rj,
+          aes(fill = area_plane_label),
+          color = "white",
+          linewidth = 0.2,
+          alpha = 0.9) +
+  
+  scale_fill_brewer(palette = "Set2") +
+  
+  labs(
+    title = "Estrutura Urbana do Rio de Janeiro",
+    fill = "Área de Planejamento"
+  ) +
+  
+  theme_minimal()
+```
+
+
+
+```{r}
+
+ggplot() +
+  
+  geom_sf(data = cidaderj,
+          fill = "gray95",
+          color = "black") +
+  
+  geom_sf(data = bairros_rj,
+          aes(color = area_plane_label),
+          fill = NA,
+          linewidth = 0.2, alpha=0.8) +
+  
+  ggnewscale::new_scale_color() +
+  
+  geom_sf(data = preco_bairro,
+          aes(color = preco_medio),
+          size = 0.2, alpha=0.2) +
+  
+  scale_color_viridis_c(option = "plasma", name = "Preço médio") +
+  
+  theme_minimal()
+```
+
+
+```{r}
+bairros_rj$nome <- as.factor(bairros_rj$nome)
+
+dt_rj <- st_drop_geometry(dt_rj)
+
+bairros_rj <- st_drop_geometry(bairros_rj)
+
+dt_rj1 <- left_join(dt_rj, bairros_rj, by=c("neighbourhood"="nome"))
+
+```
+
+
+
+```{r}
+lm(log(price) ~ factor(area_plane), data = dt_rj1)
+```
+
+
+
+
+
+```{r}
+lm(log(price) ~ area_plane + room_type, data=dt_rj1)
+```
+
+
+```{r}
+lm(log(price) ~ area_plane + room_type+ number_of_reviews_ltm, data=dt_rj1)
+
+```
+
+
+
+
+Os resultados indicam que o preço dos Airbnb no Rio de Janeiro é fortemente determinado por dois fatores centrais: a localização urbana, capturada pelas Áreas de Planejamento, e o tipo de acomodação, com robustez adicional após a inclusão de controles de reputação. Em termos espaciais, observa-se uma hierarquia clara de preços entre as regiões da cidade, consistente com padrões de renda, urbanização e atratividade turística.
+
+A Área de Planejamento 2, que inclui a Zona Sul e parte da Tijuca, apresenta o maior prêmio de localização. Essa região concentra bairros altamente valorizados e turísticos, como Ipanema, Leblon, Copacabana e Botafogo, além de áreas consolidadas da Tijuca. O resultado reflete uma combinação de alta demanda turística, forte presença de amenidades urbanas como praias, transporte e serviços, além de elevada disposição a pagar por localização. Em seguida, a AP 4, que engloba a Barra da Tijuca e Jacarepaguá, também apresenta um prêmio elevado, próximo ao observado na Zona Sul. Essa região é caracterizada por urbanização mais recente, forte presença de condomínios de alto padrão e um mercado de Airbnb mais profissionalizado, com grande oferta de unidades inteiras voltadas para lazer, eventos e estadias de maior padrão.
+
+A Área de Planejamento 1, que corresponde ao Centro, funciona como categoria de referência no modelo e apresenta um nível intermediário de preços. Trata-se de uma região com forte heterogeneidade de uso do solo, combinando atividades comerciais, administrativas e turísticas, além de áreas com diferentes níveis de conservação urbana. Essa heterogeneidade ajuda a explicar a posição intermediária da região no ranking de preços.
+
+A AP 3, que corresponde à Zona Norte, apresenta efeito próximo de zero ou levemente negativo em relação ao Centro. Essa região é a mais populosa da cidade e concentra predominantemente bairros residenciais de classe média e popular, com menor intensidade de atividade turística e menor presença de amenidades urbanas valorizadas por visitantes. Além disso, trata-se de uma região bastante heterogênea internamente, o que contribui para a diluição de efeitos médios mais fortes no modelo.
+
+Já a AP 5, correspondente à Zona Oeste, apresenta um efeito moderado e menos estável, refletindo sua forte heterogeneidade interna. Essa região inclui áreas periféricas com menor renda e menor infraestrutura urbana, como Campo Grande e Santa Cruz, ao mesmo tempo em que abriga bairros mais valorizados e turísticos, como o Recreio dos Bandeirantes. Essa combinação faz com que o efeito médio da região seja intermediário, mas com grande variabilidade interna.
+
+No que se refere ao tipo de acomodação, os resultados evidenciam uma estrutura fortemente segmentada do mercado. A unidade inteira de imóvel (apartamento ou casa completa) constitui a categoria de referência e apresenta os maiores níveis de preço, refletindo a maior privacidade e exclusividade oferecida. Em comparação, quartos de hotel apresentam um pequeno prêmio relativo, sugerindo que esse tipo de acomodação está associado a serviços adicionais e maior padrão de qualidade, o que permite preços ligeiramente superiores. Por outro lado, quartos privados apresentam descontos significativos em relação às unidades inteiras, uma vez que envolvem compartilhamento de espaços com o anfitrião ou outros hóspedes, reduzindo o nível de privacidade. Já os quartos compartilhados apresentam os maiores descontos do modelo, refletindo a menor privacidade possível e a maior sensibilidade a preço nesse segmento do mercado.
+
+Por fim, o número de reviews apresenta um efeito negativo pequeno, sugerindo que imóveis com maior volume de avaliações tendem a ter preços ligeiramente menores. Esse resultado pode estar associado a maior rotatividade em imóveis mais baratos ou a uma maior presença de unidades voltadas a segmentos mais sensíveis a preço, nos quais o volume de hóspedes é maior.
+
+Em conjunto, os resultados evidenciam que o mercado de Airbnb no Rio de Janeiro é fortemente estruturado por fatores espaciais e pela qualidade intrínseca da acomodação, com a localização urbana exercendo papel central na formação de preços e o tipo de quarto definindo uma clara hierarquia de segmentação de mercado, enquanto variáveis de reputação desempenham papel secundário na determinação dos valores cobrados.
