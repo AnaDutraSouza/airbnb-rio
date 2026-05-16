@@ -1,74 +1,78 @@
-# Análise Espacial dos Preços de Airbnb no Rio de Janeiro
+# Spatial Analysis of Airbnb Prices in Rio de Janeiro
 
-## 📋 Sobre o Projeto
+## 📋 About the Project
 
-Este projeto investiga os determinantes espaciais e estruturais dos preços de anúncios do Airbnb no município do Rio de Janeiro. A análise examina como a localização (Áreas de Planejamento) e o tipo de acomodação afetam os valores cobrados, utilizando dados reais de anúncios e mapas da cidade.
+This project investigates the spatial and structural determinants of Airbnb listing prices in the municipality of Rio de Janeiro. The analysis examines how location (Planning Areas) and accommodation type affect prices, using real listing data and city maps.
 
-## 🎯 Objetivos
+## 🎯 Objectives
 
-- Analisar a distribuição espacial dos preços de Airbnb no Rio de Janeiro
-- Identificar prêmios de localização entre as Áreas de Planejamento (APs)
-- Avaliar o impacto do tipo de quarto (inteiro, privado, compartilhado, hotel) nos preços
-- Mapear a concentração geográfica dos anúncios na cidade
+- Analyze the spatial distribution of Airbnb prices in Rio de Janeiro
+- Identify location premiums across Planning Areas (APs)
+- Evaluate the impact of room type (entire home, private room, shared room, hotel room) on prices
+- Map the geographic concentration of listings across the city
 
-## 🗺️ Dados Utilizados
+## 🗺️ Data Sources
 
-| Fonte | Descrição |
+| Source | Description |
 |-------|-----------|
-| **Inside Airbnb** | Listagens de anúncios com preços, tipo de quarto, avaliações e coordenadas |
-| **brazilmaps (pacote R)** | Shapefile do município do Rio de Janeiro |
-| **Data.Rio** | Limites oficiais dos bairros e Áreas de Planejamento |
+| **Inside Airbnb** | Listings with prices, room type, reviews, and coordinates |
+| **brazilmaps (R package)** | Shapefile of the municipality of Rio de Janeiro |
+| **Data.Rio** | Official neighborhood boundaries and Planning Areas |
 
-## 📊 Principais Resultados
+## 📊 Key Findings
 
-1. **Hierarquia espacial clara**: A Zona Sul (AP2) apresenta o maior prêmio de localização, seguida pela Barra/Jacarepaguá (AP4)
-2. **Tipo de quarto importa**: Unidades inteiras têm preços significativamente maiores que quartos compartilhados
-3. **Centro é referência intermediária**: A AP1 (Centro) serve como categoria base, com preços médios
-4. **Zona Norte (AP3)** tem preços mais baixos, refletindo menor turismo
-5. **Zona Oeste (AP5)** é heterogênea, misturando áreas valorizadas como Recreio com bairros periféricos
+1. **Clear spatial hierarchy**: South Zone (AP2) has the highest location premium, followed by Barra/Jacarepaguá (AP4)
+2. **Room type matters**: Entire homes have significantly higher prices than shared rooms
+3. **Downtown as intermediate benchmark**: AP1 (Centro) serves as the baseline category, with average prices
+4. **North Zone (AP3)** has lower prices, reflecting less tourism activity
+5. **West Zone (AP5)** is heterogeneous, mixing high-value areas like Recreio with peripheral neighborhoods
 
-## 🛠️ Tecnologias Utilizadas
+## 🛠️ Technologies Used
 
-- **Linguagem**: R 4.x
-- **Principais pacotes**:
-  - `ggplot2` + `ggridges` → visualizações
-  - `dplyr` → manipulação de dados
-  - `sf` → análise espacial
-  - `brazilmaps` → mapas do Brasil
-  - `viridis` → paletas de cores acessíveis
+- **Language**: R 4.x
+- **Main packages**:
+  - `ggplot2` + `ggridges` → visualizations
+  - `dplyr` → data manipulation
+  - `sf` → spatial analysis
+  - `brazilmaps` → Brazilian maps
+  - `viridis` → accessible color palettes
 
+## 🔍 Analysis Steps
 
-## 🔍 Etapas da Análise
+### 1. Data Wrangling
+- Loading the `listings.csv` dataset
+- Converting categorical variables (`neighbourhood_group`, `neighbourhood`, `room_type`)
+- Handling missing values (`NA`) in the `price` variable
+- Creating spatial geometry with `sf` from latitude and longitude
+- Using neighborhood boundaries provided by https://www.data.rio/
 
-### 1. Manipulação dos Dados
-- Carregamento da base `listings.csv`
-- Conversão de variáveis categóricas (`neighbourhood_group`, `neighbourhood`, `room_type`)
-- Tratamento de valores ausentes (`NA`) na variável `price`
-- Criação da geometria espacial com `sf` a partir de latitude e longitude
-- Uso de limite de bairros disponibilizado pelo https://www.data.rio/
+### 2. Exploratory Data Analysis
+- Descriptive statistics: mean, median, and mode of prices and minimum nights
+- Frequency distribution of accommodation types
+- Top 10 most frequent, most expensive, and cheapest neighborhoods
+- Histograms, density plots, and violin plots for `price` and `minimum_nights`
+- Visualizations segmented by room type
 
-### 2. Exploração dos Dados
-- Estatísticas descritivas: média, mediana e moda de preços e noites mínimas
-- Distribuição de frequência dos tipos de acomodação
-- Top 10 bairros mais frequentes, mais caros e mais baratos
-- Histogramas, densidades e gráficos de violino para `price` e `minimum_nights`
-- Visualizações segmentadas por tipo de quarto
+### 3. Spatial Analysis and Correlations
+- Map of Rio de Janeiro's urban structure (Planning Areas)
+- Map of Airbnb listing concentration across the city
+- Map of average price by neighborhood
+- Overlay of listing points with Planning Area boundaries
+- Merging listing data with neighborhood shapefile (spatial left join)
 
-### 3. Análises Espaciais e de Correlação
-- Mapa da estrutura urbana do Rio de Janeiro (Áreas de Planejamento)
-- Mapa de concentração dos anúncios de Airbnb na cidade
-- Mapa de preço médio por bairro
-- Sobreposição dos pontos de anúncios com os limites das APs
-- Cruzamento dos dados de anúncios com shapefile de bairros (left join espacial)
+### 4. Statistical Modeling
+- Model 1: `log(price) ~ area_plane` — pure location effect
+- Model 2: `log(price) ~ area_plane + room_type` — adds room type
+- Model 3: `log(price) ~ area_plane + room_type + number_of_reviews_ltm` — reputation control
 
-### 4. Modelagem Estatística
-- Modelo 1: `log(price) ~ area_plane` — efeito puro da localização
-- Modelo 2: `log(price) ~ area_plane + room_type` — adiciona tipo de quarto
-- Modelo 3: `log(price) ~ area_plane + room_type + number_of_reviews_ltm` — controle de reputação
+### 🚧 Next Steps (in development)
+- **Spatial Econometrics** methods:
+  - Spatial weights matrix (W)
+  - Spatial autocorrelation test (Moran's I)
+  - SAR (Spatial Autoregressive) and SEM (Spatial Error Model) models
+  - Controlling for spatial dependence in residuals
 
-### 🚧 Próximos Passos (em desenvolvimento)
-- Métodos de **Econometria Espacial**:
-  - Matriz de vizinhança espacial (W)
-  - Teste de autocorrelação espacial (I de Moran)
-  - Modelos SAR (Spatial Autoregressive) e SEM (Spatial Error Model)
-  - Controle de dependência espacial nos resíduos
+## 📚 References
+
+This project was inspired by the Kaggle notebook:  
+[Understand Your Data - Airbnb Reservations](https://www.kaggle.com/code/upadorprofzs/understand-your-data-airbnb-reservations)
