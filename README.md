@@ -65,12 +65,7 @@ This project investigates the spatial and structural determinants of Airbnb list
 - Model 2: `log(price) ~ area_plane + room_type` — adds room type
 - Model 3: `log(price) ~ area_plane + room_type + number_of_reviews_ltm` — reputation control
 
-### 🚧 Next Steps (in development)
-- **Spatial Econometrics** methods:
-  - Spatial weights matrix (W)
-  - Spatial autocorrelation test (Moran's I)
-  - SAR (Spatial Autoregressive) and SEM (Spatial Error Model) models
-  - Controlling for spatial dependence in residuals
+
 
 ## 📚 References
 
